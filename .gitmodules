@@ -1,0 +1,6 @@
+[submodule "@bettafish"]
+	path = @bettafish
+	url = https://github.com/666ghj/BettaFish.git
+[submodule "@deepsearchagent_demo"]
+	path = @deepsearchagent_demo
+	url = https://github.com/666ghj/DeepSearchAgent-Demo.git
