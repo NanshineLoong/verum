@@ -13,17 +13,25 @@ def render_sidebar(history: List[HistoryItem]):
         history: 历史记录列表
     """
     with st.sidebar:
-        st.title("🔍 Verum")
+        # Logo 和标题
+        col1, _ = st.columns([1, 3])
+        with col1:
+            st.image("assets/logo.png", width=40)
         
         # 新对话按钮
-        if st.button("➕ 新对话", use_container_width=True):
+        if st.button("➕ 新询问", use_container_width=True):
             clear_search()
+            st.switch_page("app.py")
             st.rerun()
+        
+        # 全网热榜按钮
+        if st.button("🔥 全网热榜", use_container_width=True):
+            st.switch_page("pages/leaderboad.py")
         
         st.divider()
         
         # 历史记录
-        st.subheader("📚 历史记录")
+        st.subheader("历史记录")
         
         if history:
             for item in history:
@@ -41,4 +49,3 @@ def render_sidebar(history: List[HistoryItem]):
                         st.caption(item.timestamp[-5:])  # 显示月-日
         else:
             st.info("暂无历史记录")
-

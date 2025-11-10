@@ -3,6 +3,7 @@ import streamlit as st
 from typing import List
 from models.data_models import Recommendation
 from api.mock_api import MockAPI
+from api.api_client import api_client
 from utils.state import set_current_search
 
 
@@ -48,9 +49,9 @@ def render_recommendations(recommendations: List[Recommendation]):
                 ):
                     # 点击推荐直接搜索
                     with st.spinner("正在加载..."):
-                        result = MockAPI.search(rec.title, "description")
-                        graph_id = result.get("graph_id")
-                        if graph_id:
-                            set_current_search(rec.title, graph_id)
+                        result = api_client.create_query_task(rec.title)
+                        task_id = result.get("task_id")
+                        if task_id:
+                            set_current_search(rec.title, task_id)
                             st.switch_page("pages/result.py")
 

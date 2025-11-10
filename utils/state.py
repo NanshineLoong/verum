@@ -26,6 +26,9 @@ def init_session_state():
     
     if "module_timeline" not in st.session_state:
         st.session_state.module_timeline = None
+    
+    if "module_mermaid_timeline" not in st.session_state:
+        st.session_state.module_mermaid_timeline = None
 
 
 def set_current_search(query: str, graph_id: str):
@@ -51,6 +54,7 @@ def reset_result_state():
     st.session_state.module_report = None
     st.session_state.module_verification = None
     st.session_state.module_timeline = None
+    st.session_state.module_mermaid_timeline = None
 
 
 def set_verification_data(verification):
@@ -61,4 +65,9 @@ def set_verification_data(verification):
 def set_timeline_data(timeline):
     """设置时间线数据"""
     st.session_state.module_timeline = timeline
+
+
+def set_mermaid_timeline_data(mermaid_timeline):
+    """设置 Mermaid Timeline 数据"""
+    st.session_state.module_mermaid_timeline = mermaid_timeline
 

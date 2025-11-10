@@ -9,22 +9,11 @@ from loguru import logger
 
 def render_search_box():
     """渲染搜索框"""
-    st.title("Verum")
-    st.caption("输入新闻主题或粘贴新闻链接，开始溯源分析")
-    
-    # 思考模式选择
-    mode_col1, mode_col2 = st.columns(2)
-    with mode_col1:
-        mode_deep = st.radio(
-            "思考模式",
-            ["🧠 深度思考", "⚡ 浅度思考"],
-            index=0,
-            horizontal=True,
-            help="深度思考：更全面的分析，耗时较长；浅度思考：快速响应"
-        )
-    
-    # 将选择转换为模式值
-    mode = "deep" if "深度" in mode_deep else "quick"
+    # Logo 和标题
+    _, col2, _ = st.columns([1, 1, 1])
+    with col2:
+        st.markdown("<h1 style='text-align: center;'>Verum</h1>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; color: #666;'>真相，触手可及</p>", unsafe_allow_html=True)
     
     # 搜索框
     col1, col2 = st.columns([5, 1])
@@ -32,13 +21,23 @@ def render_search_box():
     with col1:
         query = st.text_input(
             "搜索",
-            placeholder="例如：OpenAI 投资 AMD",
+            placeholder="输入新闻主题或粘贴新闻链接，开始溯源分析",
             label_visibility="collapsed",
             key="search_input"
         )
     
     with col2:
         search_clicked = st.button("搜索", use_container_width=True)
+
+    # 思考模式选择（可选，默认浅模式）
+    mode_deep = st.checkbox(
+        "🧠 深度溯源",
+        value=False,
+        help="更全面的分析，耗时较长"
+    )
+    
+    # 将选择转换为模式值
+    mode = "deep" if mode_deep else "quick"
     
     # 处理搜索
     if search_clicked and query:

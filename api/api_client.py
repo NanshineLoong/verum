@@ -103,7 +103,7 @@ class APIClient:
             logger.error(error_msg)
             raise Exception(error_msg)
     
-    def create_query_task(self, query: str, mode: str = "deep") -> Dict:
+    def create_query_task(self, query: str, mode: str = "quick") -> Dict:
         """
         创建查询任务
         
@@ -458,6 +458,62 @@ class APIClient:
             date_range=timeline_dict.get('date_range')
         )
 
+    def create_mermaid_timeline(self, task_id: str = None, query: str = None, report: str = None) -> str:
+        """
+        创建 Mermaid Timeline（同步执行并返回结果）
+        
+        Args:
+            task_id: 任务ID（如果提供，则从该任务获取query和report）
+            query: 原始查询内容（如果不提供task_id则必须）
+            report: 研究报告内容（如果不提供task_id则必须）
+            
+        Returns:
+            Mermaid Timeline 格式的字符串
+            
+        Raises:
+            Exception: 如果生成失败
+        """
+        try:
+            url = f"{self.base_url}/api/timeline/mermaid"
+            
+            payload = {}
+            if task_id:
+                payload['task_id'] = task_id
+            else:
+                if not query or not report:
+                    raise Exception("必须提供 task_id 或 (query + report)")
+                payload['query'] = query
+                payload['report'] = report
+            
+            logger.info(f"创建 Mermaid Timeline: task_id={task_id}")
+            
+            response = requests.post(url, json=payload, timeout=60)
+            
+            if response.status_code != 200:
+                error_msg = self._extract_error_message(
+                    response,
+                    default=f"生成 Mermaid Timeline 失败: HTTP {response.status_code}"
+                )
+                logger.error(error_msg)
+                raise Exception(error_msg)
+            
+            data = response.json()
+            
+            if not data.get('success'):
+                error_msg = data.get('error', '未知错误')
+                logger.error(f"生成 Mermaid Timeline 失败: {error_msg}")
+                raise Exception(error_msg)
+            
+            timeline_content = data.get('timeline', '')
+            logger.info(f"Mermaid Timeline 生成成功，长度: {len(timeline_content)}")
+            
+            return timeline_content
+            
+        except requests.exceptions.RequestException as e:
+            error_msg = f"网络请求失败: {str(e)}"
+            logger.error(error_msg)
+            raise Exception(error_msg)
+    
     @staticmethod
     def _extract_error_message(response: requests.Response, default: str) -> str:
         """

@@ -10,10 +10,30 @@ from utils.state import init_session_state
 # 页面配置
 st.set_page_config(
     page_title="Verum",
-    page_icon="🔍",
+    page_icon="assets/logo.png",
     layout="wide",
     initial_sidebar_state="expanded"
 )
+
+# 隐藏 Streamlit 页面导航器
+st.markdown("""
+<style>
+    /* 隐藏页面导航器 */
+    [data-testid="stSidebarNav"] {
+        display: none;
+    }
+    
+    /* 或者使用更通用的选择器 */
+    section[data-testid="stSidebarNav"] {
+        display: none;
+    }
+    
+    /* 隐藏页面导航器的容器 */
+    div[data-testid="stSidebarNav"] {
+        display: none;
+    }
+</style>
+""", unsafe_allow_html=True)
 
 
 def main():

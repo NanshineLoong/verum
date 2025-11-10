@@ -15,10 +15,10 @@ MOCK_HISTORY = [
 
 # 热点推荐
 MOCK_RECOMMENDATIONS = [
-    Recommendation(title="美联储最新利率决议", heat=0.91),
-    Recommendation(title="中国新能源车出口激增", heat=0.84),
-    Recommendation(title="OpenAI 与 AMD 合作传闻", heat=0.78),
-    Recommendation(title="特斯拉新型电池技术突破", heat=0.72),
+    Recommendation(title="DeepSeek研究员称AI可能长期取代大部分人类工作", heat=0.91),
+    Recommendation(title="FAA因人手短缺对纽瓦克机场下达停飞命令", heat=0.84),
+    Recommendation(title="胖东来销售额破纪录，比去年全年高出30亿元", heat=0.78),
+    Recommendation(title="谷歌新技术一键推演微积分，或将终结PS时代", heat=0.72),
 ]
 
 
@@ -132,21 +132,41 @@ MOCK_EXTERNAL_DISCUSSIONS = [
     ExternalDiscussion(
         platform="小红书",
         title="OpenAI投资AMD是真的吗？深度解析",
-        url="https://www.xiaohongshu.com/explore/123456"
+        url="https://www.xiaohongshu.com/user/profile/5d0bb58f00000000110378bd"
     ),
     ExternalDiscussion(
         platform="知乎",
         title="如何看待OpenAI与AMD的合作传闻？",
-        url="https://www.zhihu.com/question/987654321"
+        url="https://www.zhihu.com/"
     ),
     ExternalDiscussion(
         platform="微博",
         title="#OpenAI AMD# 最新进展讨论",
-        url="https://weibo.com/search?q=OpenAI+AMD"
+        url="https://weibo.com/"
     ),
     ExternalDiscussion(
         platform="抖音",
         title="一分钟看懂OpenAI和AMD的关系",
-        url="https://www.douyin.com/video/123456789"
+        url="https://www.douyin.com/"
     ),
 ]
+
+# Mermaid Timeline 数据示例
+MOCK_MERMAID_TIMELINE = """timeline
+    title OpenAI-AMD合作事件线
+    2025-10-06 : 正式宣布战略合作
+               : AMD官方声明
+               : 5年期6GW算力部署
+    2025-10-07 : 传闻传播期
+               : 社交媒体"千亿美元"传闻
+               : AMD股价暴涨+43%
+    2025-10-18 : 合作扩展
+               : 纳入博通等供应商
+    2025-11-04 : 财报发布
+               : Q3营收92.5亿美元
+               : 股价回调-3.9%
+    2025-11-07 : 政策影响
+               : OpenAI谈政府担保
+               : 科技股市值蒸发5000亿
+    2025-11-09 : 事实核查
+               : 确认传闻失实"""

@@ -7,7 +7,8 @@ from models.data_models import (
 )
 from mock_data.sample_data import (
     MOCK_HISTORY, MOCK_RECOMMENDATIONS, MOCK_REPORT,
-    MOCK_VERIFICATION, MOCK_TIMELINE, MOCK_EXTERNAL_DISCUSSIONS
+    MOCK_VERIFICATION, MOCK_TIMELINE, MOCK_EXTERNAL_DISCUSSIONS,
+    MOCK_MERMAID_TIMELINE
 )
 
 
@@ -37,9 +38,9 @@ class MockAPI:
         
         # 不同任务类型的配置：(延迟开始秒数, 总耗时秒数)
         task_configs = {
-            "query": (0, 10.0),          # 立即开始，10秒完成
-            "verification": (2.0, 5.0),  # 2秒后开始，5秒完成
-            "timeline": (4.0, 3.0)       # 4秒后开始，3秒完成
+            "query": (0, 2.0),          # 立即开始，10秒完成
+            "verification": (2.0, 1.0),  # 2秒后开始，5秒完成
+            "timeline": (4.0, 1.0)       # 4秒后开始，3秒完成
         }
         
         delay, duration = task_configs.get(task_type, (0, 5.0))
@@ -224,6 +225,24 @@ class MockAPI:
         """
         time.sleep(0.1)
         return MOCK_TIMELINE
+    
+    # ==================== Mermaid Timeline 任务接口 ====================
+    
+    @staticmethod
+    def create_mermaid_timeline(query: str = None, report: str = None, task_id: str = None) -> str:
+        """
+        创建 Mermaid Timeline（同步执行并返回结果）
+        
+        Args:
+            query: 原始查询内容
+            report: 研究报告内容
+            task_id: 可选的查询任务ID
+            
+        Returns:
+            Mermaid Timeline 格式的字符串
+        """
+        time.sleep(1.5)  # 模拟 Mermaid Timeline 生成耗时
+        return MOCK_MERMAID_TIMELINE
     
     # ==================== 等待方法（模拟轮询）====================
     

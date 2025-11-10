@@ -28,6 +28,7 @@ from config import settings as global_settings
 # 导入浅度思考模式（快速思考）
 sys.path.insert(0, os.path.join(PROJECT_ROOT, '@deepsearchagent_demo'))
 from src import DeepSearchAgent as QuickSearchAgent
+from src import TimelineSearchAgent
 
 # 导入判罚服务
 from verification_service import VerificationService, create_verification_service
@@ -734,6 +735,140 @@ def get_timeline_by_task(task_id: str):
             'error': str(e)
         }), 500
 
+
+@app.route('/api/timeline/mermaid', methods=['POST'])
+def generate_mermaid_timeline():
+    """
+    生成 Mermaid Timeline 格式的时间线
+    
+    请求格式:
+    {
+        "query": "原始查询",
+        "report": "研究报告内容"  // 可选，如果不提供则需要提供task_id
+        "task_id": "任务ID"  // 可选，如果不提供report则需要提供task_id
+    }
+    
+    返回格式:
+    {
+        "success": true,
+        "timeline": "mermaid timeline代码",
+        "query": "原始查询"
+    }
+    """
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({
+                'success': False,
+                'error': '请提供请求数据'
+            }), 400
+        
+        query = data.get('query', '').strip()
+        report = data.get('report', '').strip()
+        task_id = data.get('task_id', '').strip()
+        
+        # 如果没有提供report，尝试从task_id获取
+        if not report and task_id:
+            with task_lock:
+                task = tasks.get(task_id)
+            if task and task.report:
+                report = task.report
+                if not query:
+                    query = task.query
+            else:
+                return jsonify({
+                    'success': False,
+                    'error': f'任务 {task_id} 不存在或没有报告内容'
+                }), 404
+        
+        # 验证必需参数
+        if not query:
+            return jsonify({
+                'success': False,
+                'error': '请提供查询内容 (query 字段) 或任务ID (task_id 字段)'
+            }), 400
+        
+        if not report:
+            return jsonify({
+                'success': False,
+                'error': '请提供研究报告内容 (report 字段) 或任务ID (task_id 字段)'
+            }), 400
+        
+        logger.info(f"收到 Mermaid Timeline 生成请求: query={query[:50]}..., report_length={len(report)}")
+        
+        # 检查必要的配置
+        if not global_settings.QUERY_ENGINE_API_KEY:
+            return jsonify({
+                'success': False,
+                'error': '请在环境变量中设置 QUERY_ENGINE_API_KEY'
+            }), 500
+        
+        if not global_settings.TAVILY_API_KEY:
+            return jsonify({
+                'success': False,
+                'error': '请在环境变量中设置 TAVILY_API_KEY'
+            }), 500
+        
+        # 创建 TimelineSearchAgent 配置
+        from src.utils.config import Config
+        timeline_config = Config(
+            deepseek_api_key=global_settings.QUERY_ENGINE_API_KEY,
+            openai_api_key=None,
+            tavily_api_key=global_settings.TAVILY_API_KEY,
+            default_llm_provider="deepseek",
+            deepseek_model=global_settings.QUERY_ENGINE_MODEL_NAME or "deepseek-chat",
+            openai_model="gpt-4o-mini",
+            max_search_results=3,
+            search_timeout=240,
+            max_content_length=20000,
+            max_reflections=2,
+            max_paragraphs=5,
+            output_dir="query_engine_streamlit_reports",
+            save_intermediate_states=False
+        )
+        
+        # 验证配置
+        if not timeline_config.validate():
+            return jsonify({
+                'success': False,
+                'error': 'Timeline 配置验证失败，请检查环境变量中的API密钥'
+            }), 500
+        
+        # 创建 TimelineSearchAgent 实例
+        logger.info("正在初始化 TimelineSearchAgent...")
+        agent = TimelineSearchAgent(timeline_config)
+        
+        # 使用 TimelineFormattingNode 生成 Timeline
+        logger.info("正在生成 Mermaid Timeline...")
+        from src.nodes import TimelineFormattingNode
+        timeline_node = TimelineFormattingNode(agent.llm_client)
+        
+        # 准备输入数据
+        timeline_input = {
+            "report": report,
+            "query": query
+        }
+        
+        # 生成 Timeline
+        timeline_content = timeline_node.run(timeline_input, query=query)
+        
+        logger.info(f"Mermaid Timeline 生成成功，长度: {len(timeline_content)}")
+        
+        return jsonify({
+            'success': True,
+            'timeline': timeline_content,
+            'query': query
+        })
+        
+    except Exception as e:
+        import traceback
+        error_traceback = traceback.format_exc()
+        logger.error(f"生成 Mermaid Timeline 失败: {str(e)}\n{error_traceback}")
+        
+        return jsonify({
+            'success': False,
+            'error': f'生成 Mermaid Timeline 失败: {str(e)}'
+        }), 500
 
 
 if __name__ == '__main__':
