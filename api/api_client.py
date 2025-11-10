@@ -216,111 +216,81 @@ class APIClient:
                 logger.error(f"等待任务结果时出错: {str(e)}")
                 raise
     
-    def create_verification_task(self, query: str = None, report: str = None, task_id: str = None) -> Dict:
+
+    def create_verification(self, task_id: str = None, query: str = None, report: str = None) -> VerificationData:
         """
-        创建判罚任务
+        创建判罚任务（同步执行并返回结果）
         
         Args:
+            task_id: 任务ID（如果提供，则从该任务获取query和report）
             query: 原始查询内容（如果不提供task_id则必须）
             report: 研究报告内容（如果不提供task_id则必须）
-            task_id: 可选的查询任务ID，如果提供则从该任务获取query和report
             
         Returns:
-            包含 verification_id 和任务信息的字典
+            VerificationData 对象
             
         Raises:
-            Exception: 如果请求失败
+            Exception: 如果判罚失败
         """
         try:
             url = f"{self.base_url}/api/verification"
-            if query:
-                logger.info(f"创建判罚任务: query={query[:50]}...")
-            else:
-                logger.info(f"创建判罚任务: task_id={task_id}")
             
             payload = {}
             if task_id:
                 payload['task_id'] = task_id
             else:
+                if not query or not report:
+                    raise Exception("必须提供 task_id 或 (query + report)")
                 payload['query'] = query
                 payload['report'] = report
             
-            response = requests.post(
-                url,
-                json=payload,
-                timeout=30
+            logger.info(f"创建判罚任务: task_id={task_id}")
+            
+            response = requests.post(url, json=payload, timeout=60)
+            
+            if response.status_code != 200:
+                error_msg = f"判罚失败: HTTP {response.status_code}"
+                logger.error(error_msg)
+                raise Exception(error_msg)
+            
+            data = response.json()
+            
+            if not data.get('success'):
+                error_msg = data.get('error', '未知错误')
+                logger.error(f"判罚失败: {error_msg}")
+                raise Exception(error_msg)
+            
+            result_data = data.get('verification', {})
+            
+            # 转换为 VerificationData 对象
+            return VerificationData(
+                verdict=result_data.get('verdict', '无法确定'),
+                summary=result_data.get('summary', ''),
+                timestamp=result_data.get('timestamp')
             )
             
-            if response.status_code != 200:
-                error_msg = f"创建判罚任务失败: HTTP {response.status_code}"
-                logger.error(error_msg)
-                raise Exception(error_msg)
-            
-            data = response.json()
-            
-            if not data.get('success'):
-                error_msg = data.get('error', '未知错误')
-                logger.error(f"创建判罚任务失败: {error_msg}")
-                raise Exception(error_msg)
-            
-            verification_id = data.get('verification_id')
-            logger.info(f"判罚任务创建成功: {verification_id}")
-            return data
-            
         except requests.exceptions.RequestException as e:
             error_msg = f"网络请求失败: {str(e)}"
             logger.error(error_msg)
             raise Exception(error_msg)
     
-    def get_verification_status(self, verification_id: str) -> Dict:
+    def get_verification_by_task(self, task_id: str) -> VerificationData:
         """
-        获取判罚任务状态
+        根据任务ID获取判罚结果
         
         Args:
-            verification_id: 判罚任务ID
+            task_id: 任务ID
             
         Returns:
-            包含任务状态的字典
-        """
-        try:
-            url = f"{self.base_url}/api/verification/{verification_id}/status"
-            
-            response = requests.get(url, timeout=10)
-            
-            if response.status_code != 200:
-                error_msg = f"获取判罚状态失败: HTTP {response.status_code}"
-                logger.error(error_msg)
-                raise Exception(error_msg)
-            
-            data = response.json()
-            
-            if not data.get('success'):
-                error_msg = data.get('error', '未知错误')
-                logger.error(f"获取判罚状态失败: {error_msg}")
-                raise Exception(error_msg)
-            
-            return data.get('verification', {})
-            
-        except requests.exceptions.RequestException as e:
-            error_msg = f"网络请求失败: {str(e)}"
-            logger.error(error_msg)
-            raise Exception(error_msg)
-    
-    def get_verification_result(self, verification_id: str) -> Dict:
-        """
-        获取判罚结果
-        
-        Args:
-            verification_id: 判罚任务ID
-            
-        Returns:
-            包含判罚结果的字典
+            VerificationData 对象
             
         Raises:
-            Exception: 如果任务未完成或失败
+            Exception: 如果获取失败
         """
         try:
-            url = f"{self.base_url}/api/verification/{verification_id}"
+            url = f"{self.base_url}/api/verification/query/{task_id}"
+            
+            logger.info(f"获取判罚结果: task_id={task_id}")
             
             response = requests.get(url, timeout=10)
             
@@ -336,101 +306,36 @@ class APIClient:
                 logger.error(f"获取判罚结果失败: {error_msg}")
                 raise Exception(error_msg)
             
-            return data
+            result_data = data.get('verification', {})
+            
+            # 转换为 VerificationData 对象
+            return VerificationData(
+                verdict=result_data.get('verdict', '无法确定'),
+                summary=result_data.get('summary', ''),
+                timestamp=result_data.get('timestamp')
+            )
             
         except requests.exceptions.RequestException as e:
             error_msg = f"网络请求失败: {str(e)}"
             logger.error(error_msg)
             raise Exception(error_msg)
-    
-    def wait_for_verification(
-        self,
-        verification_id: str,
-        poll_interval: float = 2.0,
-        max_wait_time: float = 300.0,
-        progress_callback=None
-    ) -> VerificationData:
+
+    def create_timeline(self, task_id: str = None, state_data: Dict = None) -> TimelineData:
         """
-        等待判罚任务完成并返回结果
+        创建时间线（同步执行并返回结果）
         
         Args:
-            verification_id: 判罚任务ID
-            poll_interval: 轮询间隔（秒）
-            max_wait_time: 最大等待时间（秒）
-            progress_callback: 进度回调函数，接收 (status, progress) 参数
+            task_id: 任务ID（如果提供，则从该任务获取state_data）
+            state_data: 状态数据（如果不提供task_id则必须）
             
         Returns:
-            VerificationData 对象
+            TimelineData 对象
             
         Raises:
-            Exception: 如果任务失败或超时
-        """
-        start_time = time.time()
-        
-        while True:
-            # 检查超时
-            elapsed = time.time() - start_time
-            if elapsed > max_wait_time:
-                logger.error(f"判罚任务超时: {verification_id}")
-                raise Exception("判罚任务执行超时")
-            
-            # 获取任务状态
-            try:
-                verification = self.get_verification_status(verification_id)
-                status = verification.get('status')
-                progress = verification.get('progress', 0)
-                
-                # 调用进度回调
-                if progress_callback:
-                    progress_callback(status, progress)
-                
-                # 检查任务状态
-                if status == 'completed':
-                    logger.info(f"判罚任务完成: {verification_id}")
-                    result = self.get_verification_result(verification_id)
-                    result_data = result.get('result', {})
-                    
-                    # 转换为 VerificationData 对象
-                    return VerificationData(
-                        verdict=result_data.get('verdict', '无法确定'),
-                        summary=result_data.get('summary', ''),
-                        timestamp=result_data.get('timestamp')
-                    )
-                
-                elif status == 'error':
-                    error_msg = verification.get('error_message', '未知错误')
-                    logger.error(f"判罚任务失败: {error_msg}")
-                    raise Exception(error_msg)
-                
-                elif status in ['pending', 'running']:
-                    # 继续等待
-                    time.sleep(poll_interval)
-                
-                else:
-                    logger.error(f"未知任务状态: {status}")
-                    raise Exception(f"未知任务状态: {status}")
-                    
-            except Exception as e:
-                logger.error(f"等待判罚结果时出错: {str(e)}")
-                raise
-    
-    def create_timeline_task(self, state_data: Dict = None, task_id: str = None) -> Dict:
-        """
-        创建时间线任务
-        
-        Args:
-            state_data: 状态数据
-            task_id: 可选的查询任务ID，如果提供则从该任务获取state_data
-            
-        Returns:
-            包含 timeline_id 和任务信息的字典
-            
-        Raises:
-            Exception: 如果请求失败
+            Exception: 如果生成失败
         """
         try:
-            url = f"{self.base_url}/api/timeline"
-            logger.info(f"创建时间线任务...")
+            url = f"{self.base_url}/api/timeline/generate"
             
             payload = {}
             if task_id:
@@ -438,16 +343,17 @@ class APIClient:
             elif state_data:
                 payload['state_data'] = state_data
             else:
-                raise Exception("必须提供 state_data 或 task_id")
+                raise Exception("必须提供 task_id 或 state_data")
             
-            response = requests.post(
-                url,
-                json=payload,
-                timeout=30
-            )
+            logger.info(f"创建时间线: task_id={task_id}")
+            
+            response = requests.post(url, json=payload, timeout=60)
             
             if response.status_code != 200:
-                error_msg = f"创建时间线任务失败: HTTP {response.status_code}"
+                error_msg = self._extract_error_message(
+                    response,
+                    default=f"生成时间线失败: HTTP {response.status_code}"
+                )
                 logger.error(error_msg)
                 raise Exception(error_msg)
             
@@ -455,155 +361,57 @@ class APIClient:
             
             if not data.get('success'):
                 error_msg = data.get('error', '未知错误')
-                logger.error(f"创建时间线任务失败: {error_msg}")
+                logger.error(f"生成时间线失败: {error_msg}")
                 raise Exception(error_msg)
             
-            timeline_id = data.get('timeline_id')
-            logger.info(f"时间线任务创建成功: {timeline_id}")
-            return data
+            # 转换为 TimelineData 对象
+            return self._build_timeline_data(data)
             
         except requests.exceptions.RequestException as e:
             error_msg = f"网络请求失败: {str(e)}"
             logger.error(error_msg)
             raise Exception(error_msg)
     
-    def get_timeline_status(self, timeline_id: str) -> Dict:
+    def get_timeline_by_task(self, task_id: str) -> TimelineData:
         """
-        获取时间线任务状态
+        根据任务ID获取时间线
         
         Args:
-            timeline_id: 时间线任务ID
-            
-        Returns:
-            包含任务状态的字典
-        """
-        try:
-            url = f"{self.base_url}/api/timeline/{timeline_id}/status"
-            
-            response = requests.get(url, timeout=10)
-            
-            if response.status_code != 200:
-                error_msg = f"获取时间线状态失败: HTTP {response.status_code}"
-                logger.error(error_msg)
-                raise Exception(error_msg)
-            
-            data = response.json()
-            
-            if not data.get('success'):
-                error_msg = data.get('error', '未知错误')
-                logger.error(f"获取时间线状态失败: {error_msg}")
-                raise Exception(error_msg)
-            
-            return data.get('timeline', {})
-            
-        except requests.exceptions.RequestException as e:
-            error_msg = f"网络请求失败: {str(e)}"
-            logger.error(error_msg)
-            raise Exception(error_msg)
-    
-    def get_timeline_result(self, timeline_id: str) -> Dict:
-        """
-        获取时间线结果
-        
-        Args:
-            timeline_id: 时间线任务ID
-            
-        Returns:
-            包含时间线结果的字典
-            
-        Raises:
-            Exception: 如果任务未完成或失败
-        """
-        try:
-            url = f"{self.base_url}/api/timeline/{timeline_id}"
-            
-            response = requests.get(url, timeout=10)
-            
-            if response.status_code != 200:
-                error_msg = f"获取时间线结果失败: HTTP {response.status_code}"
-                logger.error(error_msg)
-                raise Exception(error_msg)
-            
-            data = response.json()
-            
-            if not data.get('success'):
-                error_msg = data.get('error', '未知错误')
-                logger.error(f"获取时间线结果失败: {error_msg}")
-                raise Exception(error_msg)
-            
-            return data
-            
-        except requests.exceptions.RequestException as e:
-            error_msg = f"网络请求失败: {str(e)}"
-            logger.error(error_msg)
-            raise Exception(error_msg)
-    
-    def wait_for_timeline(
-        self,
-        timeline_id: str,
-        poll_interval: float = 2.0,
-        max_wait_time: float = 300.0,
-        progress_callback=None
-    ) -> TimelineData:
-        """
-        等待时间线任务完成并返回结果
-        
-        Args:
-            timeline_id: 时间线任务ID
-            poll_interval: 轮询间隔（秒）
-            max_wait_time: 最大等待时间（秒）
-            progress_callback: 进度回调函数，接收 (status, progress) 参数
+            task_id: 任务ID
             
         Returns:
             TimelineData 对象
             
         Raises:
-            Exception: 如果任务失败或超时
+            Exception: 如果获取失败
         """
-        start_time = time.time()
-        
-        while True:
-            # 检查超时
-            elapsed = time.time() - start_time
-            if elapsed > max_wait_time:
-                logger.error(f"时间线任务超时: {timeline_id}")
-                raise Exception("时间线任务执行超时")
+        try:
+            url = f"{self.base_url}/api/timeline/query/{task_id}"
             
-            # 获取任务状态
-            try:
-                timeline = self.get_timeline_status(timeline_id)
-                status = timeline.get('status')
-                progress = timeline.get('progress', 0)
-                
-                # 调用进度回调
-                if progress_callback:
-                    progress_callback(status, progress)
-                
-                # 检查任务状态
-                if status == 'completed':
-                    logger.info(f"时间线任务完成: {timeline_id}")
-                    result = self.get_timeline_result(timeline_id)
-                    result_data = result.get('result', {})
-                    
-                    # 转换为 TimelineData 对象
-                    return self._build_timeline_data(result_data)
-                
-                elif status == 'error':
-                    error_msg = timeline.get('error_message', '未知错误')
-                    logger.error(f"时间线任务失败: {error_msg}")
-                    raise Exception(error_msg)
-                
-                elif status in ['pending', 'running']:
-                    # 继续等待
-                    time.sleep(poll_interval)
-                
-                else:
-                    logger.error(f"未知任务状态: {status}")
-                    raise Exception(f"未知任务状态: {status}")
-                    
-            except Exception as e:
-                logger.error(f"等待时间线结果时出错: {str(e)}")
-                raise
+            logger.info(f"获取时间线: task_id={task_id}")
+            
+            response = requests.get(url, timeout=10)
+            
+            if response.status_code != 200:
+                error_msg = f"获取时间线失败: HTTP {response.status_code}"
+                logger.error(error_msg)
+                raise Exception(error_msg)
+            
+            data = response.json()
+            
+            if not data.get('success'):
+                error_msg = data.get('error', '未知错误')
+                logger.error(f"获取时间线失败: {error_msg}")
+                raise Exception(error_msg)
+            
+            # 转换为 TimelineData 对象
+            return self._build_timeline_data(data)
+            
+        except requests.exceptions.RequestException as e:
+            error_msg = f"网络请求失败: {str(e)}"
+            logger.error(error_msg)
+            raise Exception(error_msg)
+    
     
     def _build_timeline_data(self, timeline_dict: Dict) -> TimelineData:
         """
@@ -649,6 +457,17 @@ class APIClient:
             total_sources=timeline_dict.get('total_sources', 0),
             date_range=timeline_dict.get('date_range')
         )
+
+    @staticmethod
+    def _extract_error_message(response: requests.Response, default: str) -> str:
+        """
+        尝试从响应体中解析错误信息
+        """
+        try:
+            data = response.json()
+            return data.get('error', default)
+        except ValueError:
+            return default
 
 
 # 创建全局实例

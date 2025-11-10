@@ -1,14 +1,17 @@
 """结果展示页面"""
 import streamlit as st
-import time
 from api.mock_api import MockAPI
+# api_client = MockAPI()
 from api.api_client import api_client
 from components.sidebar import render_sidebar
-from utils.state import init_session_state
+from utils.state import (
+    init_session_state,
+    set_verification_data,
+    set_timeline_data
+)
 from loguru import logger
 
 
-api_client = api_client
 
 # 页面配置
 st.set_page_config(
@@ -19,22 +22,14 @@ st.set_page_config(
 )
 
 
-# 左上
-def render_verdict_section(pending_task_id):
-    """渲染真实性判定和判别结果"""
-    # 获取判别数据
-    verification_data = st.session_state.get('module_verification')
-    if not verification_data and pending_task_id:
-        try:
-            verification = api_client.wait_for_verification(pending_task_id)
-            
-        except Exception as e:
-            logger.warning(f"加载判别结果失败: {str(e)}")
-    
-    if not verification_data:
-        return
-    
+def render_verdict_section(verification):
+    """渲染真实性判定结果"""
+
     st.subheader("⚖️ 新闻真假判别")
+    
+    if not verification:
+        st.markdown('<div class="verdict-container">⏳ 正在判别新闻真假...</div>', unsafe_allow_html=True)
+        return
     
     # 判定结果徽章
     verdict_colors = {
@@ -45,7 +40,7 @@ def render_verdict_section(pending_task_id):
     }
     
     emoji, bg_color, text_color = verdict_colors.get(
-        verification_data.verdict, 
+        verification.verdict, 
         ("❓", "#e2e3e5", "#383d41")
     )
     
@@ -55,91 +50,77 @@ def render_verdict_section(pending_task_id):
         border-radius: 0.5rem;
         background-color: {bg_color};
         color: {text_color};
-        margin-bottom: 1rem;
+        margin-bottom: 0.5rem;
         font-weight: bold;
         font-size: 1.2rem;
     ">
-        {emoji} {verification_data.verdict}
+        {emoji} {verification.verdict}
     </div>
     """, unsafe_allow_html=True)
     
     # 判别摘要
     st.markdown("**判别摘要：**")
-    st.write(verification_data.summary)
+    st.caption(verification.summary)
 
 
-# 左边主体
-def render_report_tabs(pending_task_id):
+def render_report_tabs(report_text, current_query):
     """渲染报告标签页"""
-    tab1, tab2 = st.tabs(["📄 AI 分析报告", "📰 新闻原文"])
+
+    tab1, tab2 = st.tabs(["📰 新闻原文", "📄 AI 分析报告"])
     
     with tab1:
-        # 自定义 CSS：定义一个固定高度、可滚动的容器
-        st.markdown("""
-            <style>
-            .report-container {
-                height: 300px;        /* 固定高度 */
-                overflow-y: auto;     /* 超出时滚动 */
-                border: 1px solid #ddd;
-                padding: 1rem;
-                border-radius: 8px;
-                background-color: #fafafa;
-            }
-            </style>
-        """, unsafe_allow_html=True)
-
-        # 创建可替换的容器
-        report_container = st.empty()
-
-        # 初始内容
-        with report_container.container():
-            st.markdown('<div class="report-container">', unsafe_allow_html=True)
-            progress_placeholder = st.empty()  # 在滚动区域内放进度条
-            st.markdown('</div>', unsafe_allow_html=True)
-
-        # 等待报告生成完成  
-        def report_callback(progress):
-            progress_placeholder.progress(progress / 100.0)
-
-        report_data = api_client.wait_for_report(
-            pending_task_id,
-            poll_interval=1.0,
-            progress_callback=report_callback
-        )
-        
-
-        if report_data:
-            with report_container.container():
-                st.markdown(f'<div class="report-container">{report_data}</div>', unsafe_allow_html=True)
+        # 如果是链接查询，显示原文
+        if current_query.startswith("http"):
+            st.components.v1.iframe(current_query, height=400, scrolling=True)
         else:
-            st.error("❌ 报告生成失败")
+            st.info("💡 当前为主题搜索，没有单一原文链接")
+            st.caption("您可以在时间线模块中查看相关新闻来源")
+            st.markdown('<div class="report-container">', unsafe_allow_html=True)
+            st.markdown('</div>', unsafe_allow_html=True)
     
     with tab2:
-        # 如果是链接查询，显示原文
-        if st.session_state.get("current_query", "").startswith("http"):
-            st.components.v1.iframe(
-                st.session_state.current_query,
-                height=600,
-                scrolling=True
-            )
+        st.markdown('<div class="report-container">', unsafe_allow_html=True)
+        if report_text:
+            st.markdown(report_text)
         else:
-            st.info("💡 点击溯源图中的节点可以查看具体新闻原文")
-            st.caption("当前为主题搜索，没有单一原文链接")
+            st.info("⏳ 报告生成中，请稍候...")
+        st.markdown('</div>', unsafe_allow_html=True)
 
 
-# 左下
 def render_feedback_section():
-    pass
+    """渲染反馈按钮"""
+    st.markdown("### 💭 您的看法")
+    
+    col1, col2 = st.columns(2)
+    
+    # 初始化计数器
+    if 'agree_count' not in st.session_state:
+        st.session_state.agree_count = 42
+    if 'disagree_count' not in st.session_state:
+        st.session_state.disagree_count = 8
+    
+    with col1:
+        if st.button(f"👍 认同 ({st.session_state.agree_count})", use_container_width=True):
+            st.session_state.agree_count += 1
+            st.rerun()
+    
+    with col2:
+        if st.button(f"👎 不认同 ({st.session_state.disagree_count})", use_container_width=True):
+            st.session_state.disagree_count += 1
+            st.rerun()
 
 
-# 右上
 def render_timeline_section(timeline_data):
     """渲染时间线"""
-    if not timeline_data:
-        st.info("暂无时间线数据")
-        return
     
     st.subheader("📅 新闻时间线")
+    
+    st.markdown('<div class="timeline-container">', unsafe_allow_html=True)
+    
+    if not timeline_data:
+        st.info("⏳ 正在生成时间线...")
+        st.markdown('</div>', unsafe_allow_html=True)
+        return
     
     # 统计信息
     if timeline_data.date_range or timeline_data.total_sources > 0:
@@ -149,51 +130,56 @@ def render_timeline_section(timeline_data):
                 st.metric("时间范围", f"{timeline_data.date_range['start']} - {timeline_data.date_range['end']}")
         with col2:
             st.metric("参考文章总数", f"{timeline_data.total_sources} 篇")
-    
-    st.divider()
+        
+        st.divider()
     
     # 时间线内容
-    if not timeline_data.timeline:
+    if timeline_data.timeline:
+        for item in timeline_data.timeline:
+            with st.expander(f"📅 {item.date} ({item.source_count}篇)", expanded=False):
+                for event in item.events:
+                    # 事件标题和时间
+                    time_text = f" ({event.time})" if event.time else ""
+                    st.markdown(f"**{event.title}**{time_text}")
+                    
+                    # 事件描述
+                    if event.description:
+                        st.caption(event.description)
+                    
+                    # 参考文章
+                    if event.sources:
+                        st.caption("**参考文章：**")
+                        for source in event.sources:
+                            parts = []
+                            if source.url:
+                                parts.append(f"[{source.title}]({source.url})")
+                            else:
+                                parts.append(source.title)
+                            
+                            if source.website_name:
+                                parts.append(f"- {source.website_name}")
+                            
+                            if source.score:
+                                parts.append(f"(相关度: {source.score:.2f})")
+                            
+                            st.caption(" ".join(parts))
+                    
+                    st.divider()
+    else:
         st.info("暂无时间线事件")
-        return
     
-    for item in timeline_data.timeline:
-        with st.expander(f"📅 {item.date} ({item.source_count}篇)", expanded=True):
-            for event in item.events:
-                # 事件标题和时间
-                time_text = f" ({event.time})" if event.time else ""
-                st.markdown(f"**{event.title}**{time_text}")
-                
-                # 事件描述
-                if event.description:
-                    st.caption(event.description)
-                
-                # 参考文章
-                if event.sources:
-                    st.caption("**参考文章：**")
-                    for source in event.sources:
-                        parts = []
-                        if source.url:
-                            parts.append(f"[{source.title}]({source.url})")
-                        else:
-                            parts.append(source.title)
-                        
-                        if source.website_name:
-                            parts.append(f"- {source.website_name}")
-                        
-                        if source.score:
-                            parts.append(f"(相关度: {source.score:.2f})")
-                        
-                        st.caption(" ".join(parts))
-                
-                st.divider()
+    st.markdown('</div>', unsafe_allow_html=True)
 
 
-# 右下
-def render_external_discussions(discussions):
+def render_external_discussions():
     """渲染外部讨论链接"""
     st.subheader("💬 社区讨论")
+    
+    st.markdown('<div class="discussion-container">', unsafe_allow_html=True)
     st.caption("查看其他平台的相关讨论")
+    
+    # Mock 数据 - 实际应该从 API 获取
+    discussions = MockAPI.get_external_discussions()
     
     for discussion in discussions:
         # 平台图标
@@ -218,7 +204,8 @@ def render_external_discussions(discussions):
             {emoji} <strong>{discussion.platform}</strong>: {discussion.title}
         </a>
         """, unsafe_allow_html=True)
-
+    
+    st.markdown('</div>', unsafe_allow_html=True)
 
 
 def main():
@@ -231,101 +218,101 @@ def main():
     render_sidebar(history)
     
     # 检查是否有待处理的任务
-    pending_task_id = st.session_state.get('pending_task_id')
+    task_id = st.session_state.get('pending_task_id')
+    current_query = st.session_state.get('current_query', '分析结果')
     
-    if pending_task_id:
-        st.title(f"📊 {st.session_state.get('current_query', '正在分析中...')}")
-        st.info("正在分析查询内容，各模块将陆续加载...")
-        
-        # 创建各模块的容器
-        report_container = st.empty()
-        discussion_container = st.empty()
-        
-        # 报告模块
-        with report_container.container():
-            st.subheader("📄 报告生成")
-            report_progress = st.progress(0)
-            report_status = st.empty()
-            
-            def report_callback(status, progress):
-                status_map = {"pending": "等待中", "running": "生成中", "completed": "完成", "error": "错误"}
-                report_status.text(f"{status_map.get(status, status)}... {progress}%")
-                report_progress.progress(progress / 100.0)
-            
-            report_data = api_client.wait_for_report(
-                pending_task_id,
-                poll_interval=1.0,
-                progress_callback=report_callback
-            )
-            
-            if report_data:
-                report_status.success("✅ 报告生成完成")
-            else:
-                report_status.error("❌ 报告生成失败")
-        
-        # 外部讨论模块
-        with discussion_container.container():
-            st.subheader("💬 外部讨论")
-            discussion_progress = st.progress(0)
-            discussion_status = st.empty()
-            
-            def discussion_callback(status, progress):
-                status_map = {"pending": "等待中", "running": "加载中", "completed": "完成", "error": "错误"}
-                discussion_status.text(f"{status_map.get(status, status)}... {progress}%")
-                discussion_progress.progress(progress / 100.0)
-            
-            discussions = api_client.wait_for_discussion(
-                pending_task_id,
-                poll_interval=1.0,
-                progress_callback=discussion_callback
-            )
-            
-            if discussions:
-                discussion_status.success("✅ 外部讨论加载完成")
-            else:
-                discussion_status.error("❌ 外部讨论加载失败")
-        
-        # 保存数据到 session state
-        st.session_state.module_report = report_data
-        st.session_state.module_discussion = discussions
-        
-        # 清除待处理任务标记
-        del st.session_state.pending_task_id
-        
-        st.success("🎉 所有模块加载完成！")
-        time.sleep(1)
-        st.rerun()
-        return
+    if st.button("← 返回首页"):
+        st.switch_page("app.py")
 
     # 页面标题
-    st.title(f"📊 {st.session_state.get('current_query', '分析结果')}")
+    st.title(f"📊 {current_query}")
     
-    # 左右分栏布局
+    # 获取当前已加载的数据
+    report_text = st.session_state.get('module_report')
+    verification = st.session_state.get('module_verification')
+    timeline_data = st.session_state.get('module_timeline')
+    
+    # === 第一步：先创建可替换的占位容器并渲染当前内容 ===
+
     left_col, right_col = st.columns([2, 1])
     
     with left_col:
-        # 真实性判定和判别结果
-        render_verdict_section(pending_task_id)
-
-        render_report_tabs(pending_task_id)
-
-        st.divider()
-
-        render_feedback_section()
-
-    with right_col:
-        render_timeline_section(pending_task_id)
+        verdict_placeholder = st.empty()
+        with verdict_placeholder.container():
+            render_verdict_section(verification)
         
         st.divider()
-        # 外部讨论
-        render_external_discussions(pending_task_id)
+        
+        report_placeholder = st.empty()
+        with report_placeholder.container():
+            render_report_tabs(report_text, current_query)
+        
+        st.divider()
+        render_feedback_section()
     
-    # 底部操作
-    st.divider()
-    if st.button("← 返回首页"):
-        st.switch_page("app.py")
+    with right_col:
+        timeline_placeholder = st.empty()
+        with timeline_placeholder.container():
+            render_timeline_section(timeline_data)
+        
+        st.divider()
+        
+        discussions_placeholder = st.empty()
+        with discussions_placeholder.container():
+            render_external_discussions()
+    
+    
+    
+    # === 第二步：后台加载数据并更新容器（不阻塞布局渲染） ===
+    # 加载报告（如果还没加载）
+    if task_id and not report_text:
+        try:
+            logger.info(f"开始生成报告: {task_id}")
+            report_data = api_client.wait_for_query(task_id, poll_interval=1.0, max_wait_time=3000.0)
+            
+            if report_data and hasattr(report_data, 'report'):
+                report_text = report_data.report
+                st.session_state.module_report = report_text
+                logger.info("报告生成完成")
+                with report_placeholder.container():
+                    render_report_tabs(report_text, current_query)
+        except Exception as e:
+            logger.error(f"生成报告失败: {str(e)}")
+            with report_placeholder.container():
+                st.markdown('<div class="report-container">', unsafe_allow_html=True)
+                st.error(f"❌ 报告生成失败: {str(e)}")
+                st.markdown('</div>', unsafe_allow_html=True)
+            return
+    
+    # 加载真假判别（如果报告已加载但判别还没加载）
+    if task_id and report_text and not verification:
+        try:
+            logger.info(f"开始判别: {task_id}")
+            verification = api_client.create_verification(task_id=task_id)
+            set_verification_data(verification)
+            logger.info("判别完成")
+            with verdict_placeholder.container():
+                render_verdict_section(verification)
+        except Exception as e:
+            logger.error(f"判别失败: {str(e)}")
+            with verdict_placeholder.container():
+                st.markdown('<div class="verdict-container">❌ 判别失败，请稍后重试</div>', unsafe_allow_html=True)
+            return
+    
+    # 加载时间线（如果判别已加载但时间线还没加载）
+    if task_id and verification and not timeline_data:
+        try:
+            logger.info(f"开始生成时间线: {task_id}")
+            timeline_data = api_client.create_timeline(task_id=task_id)
+            set_timeline_data(timeline_data)
+            logger.info("时间线生成完成")
+            with timeline_placeholder.container():
+                render_timeline_section(timeline_data)
+        except Exception as e:
+            logger.error(f"生成时间线失败: {str(e)}")
+            with timeline_placeholder.container():
+                st.markdown('<div class="timeline-container">❌ 时间线生成失败，请稍后重试</div>', unsafe_allow_html=True)
 
 
 if __name__ == "__main__":
     main()
-

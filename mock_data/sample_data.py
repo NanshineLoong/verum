@@ -1,7 +1,7 @@
 """Mock数据 - 用于开发和测试"""
 from models.data_models import (
-    HistoryItem, Recommendation, ReportData, ReportSource, ExternalDiscussion, 
-    TimelineData, TimelineItem, TimelineEvent, TimelineSource
+    HistoryItem, Recommendation, ReportData, ReportSource, ExternalDiscussion,
+    VerificationData, TimelineData, TimelineItem, TimelineEvent, TimelineSource
 )
 
 
@@ -23,10 +23,7 @@ MOCK_RECOMMENDATIONS = [
 
 
 # 报告数据示例
-MOCK_REPORT = ReportData(
-    verdict="中可信",
-    confidence=0.73,
-    report="""# OpenAI 投资 AMD 事件分析报告
+MOCK_REPORT = """# OpenAI 投资 AMD 事件分析报告
 
 ## 事件概述
 近日，有消息称OpenAI计划投资AMD一千亿美元，引发广泛关注。经过溯源分析，该消息存在一定程度的误读。
@@ -41,14 +38,92 @@ MOCK_REPORT = ReportData(
 - **质疑证据**: OpenAI并未发布任何关于千亿投资的官方声明
 - **结论**: 该消息部分属实但被显著夸大
 
+## 参考来源
+1. AMD 官方声明 - [链接](https://www.amd.com/news)
+2. Bloomberg 原始报道 - [链接](https://www.bloomberg.com)
+3. TechCrunch 分析 - [链接](https://techcrunch.com)
+
 ## 建议
 建议持续关注官方渠道的后续声明，不轻信未经证实的传闻。
-""",
-    sources=[
-        ReportSource(title="AMD 官方声明", url="https://www.amd.com/news/official-statement"),
-        ReportSource(title="Bloomberg 原始报道", url="https://www.bloomberg.com/tech/amd-openai"),
-        ReportSource(title="TechCrunch 分析", url="https://techcrunch.com/2025/11/08/openai-amd"),
-    ]
+"""
+
+
+# 判罚数据示例
+MOCK_VERIFICATION = VerificationData(
+    verdict="部分真实",
+    summary='经过对多方信息源的分析，OpenAI与AMD确实存在合作洽谈，但"投资一千亿美元"的说法缺乏官方证实，存在媒体夸大和误读的情况。建议将此消息标记为"部分真实"。',
+    timestamp="2025-11-08 15:30:00"
+)
+
+
+# 时间线数据示例
+MOCK_TIMELINE = TimelineData(
+    timeline=[
+        TimelineItem(
+            date="2025.11.08",
+            date_key="2025-11-08",
+            events=[
+                TimelineEvent(
+                    title="AMD官方回应合作传闻",
+                    description="AMD发布声明确认正在与多家AI公司进行战略合作讨论，但未透露具体投资金额。",
+                    time="14:30",
+                    datetime="2025-11-08T14:30:00",
+                    sources=[
+                        TimelineSource(
+                            title="AMD官方声明：关于AI芯片合作的说明",
+                            url="https://www.amd.com/news/official-statement",
+                            score=0.95,
+                            website_name="AMD官网",
+                            content_preview="AMD确认正在与包括OpenAI在内的多家公司讨论AI芯片合作事宜..."
+                        )
+                    ]
+                ),
+                TimelineEvent(
+                    title="Bloomberg首次报道合作消息",
+                    description="Bloomberg报道称OpenAI正在与AMD洽谈AI芯片供应合作，涉及金额可能达到数十亿美元。",
+                    time="10:15",
+                    datetime="2025-11-08T10:15:00",
+                    sources=[
+                        TimelineSource(
+                            title="OpenAI in Talks with AMD for AI Chip Partnership",
+                            url="https://www.bloomberg.com/tech/amd-openai-2025",
+                            score=0.92,
+                            website_name="Bloomberg",
+                            content_preview="Sources say OpenAI is negotiating with AMD for a potential multi-billion dollar chip deal..."
+                        )
+                    ]
+                )
+            ],
+            source_count=2
+        ),
+        TimelineItem(
+            date="2025.11.07",
+            date_key="2025-11-07",
+            events=[
+                TimelineEvent(
+                    title="科技博主率先曝光消息",
+                    description="多位科技领域博主在社交媒体上曝光OpenAI可能投资AMD的消息，引发热议。",
+                    time="20:45",
+                    datetime="2025-11-07T20:45:00",
+                    sources=[
+                        TimelineSource(
+                            title="科技博主爆料：OpenAI将投资AMD",
+                            url="https://twitter.com/techblogger/status/123456",
+                            score=0.68,
+                            website_name="Twitter",
+                            content_preview="独家消息：OpenAI计划向AMD投资千亿美元，布局AI芯片..."
+                        )
+                    ]
+                )
+            ],
+            source_count=1
+        )
+    ],
+    total_sources=3,
+    date_range={
+        "start": "2025.11.07",
+        "end": "2025.11.08"
+    }
 )
 
 
@@ -56,7 +131,7 @@ MOCK_REPORT = ReportData(
 MOCK_EXTERNAL_DISCUSSIONS = [
     ExternalDiscussion(
         platform="小红书",
-        title="OpenAI投资AMD是真的吗？",
+        title="OpenAI投资AMD是真的吗？深度解析",
         url="https://www.xiaohongshu.com/explore/123456"
     ),
     ExternalDiscussion(
@@ -66,50 +141,12 @@ MOCK_EXTERNAL_DISCUSSIONS = [
     ),
     ExternalDiscussion(
         platform="微博",
-        title="#OpenAI AMD# 热门讨论",
+        title="#OpenAI AMD# 最新进展讨论",
         url="https://weibo.com/search?q=OpenAI+AMD"
     ),
+    ExternalDiscussion(
+        platform="抖音",
+        title="一分钟看懂OpenAI和AMD的关系",
+        url="https://www.douyin.com/video/123456789"
+    ),
 ]
-
-
-# 事件ID映射（用于快速查找）
-MOCK_EVENT_MAP = {
-    "evt_20251009_openai_amd": {
-        "report": MOCK_REPORT,
-        "discussions": MOCK_EXTERNAL_DISCUSSIONS,
-    }
-}
-
-# 时间线数据示例
-MOCK_TIMELINE = TimelineData(
-    timeline=[
-        TimelineItem(
-            date="2025-11-08",
-            date_key="20251108",
-            events=[
-                TimelineEvent(
-                    title="OpenAI 投资 AMD",
-                    description="OpenAI 计划投资 AMD 一千亿美元，引发广泛关注。",
-                    time="2025-11-08 10:00:00", 
-                    datetime="2025-11-08 10:00:00",
-                    sources=[
-                        TimelineSource(
-                            title="AMD 官方声明",
-                            url="https://www.amd.com/news/official-statement",
-                            score=0.9,
-                            website_name="AMD",
-                            content_preview="OpenAI 计划投资 AMD 一千亿美元，引发广泛关注。"
-                        )
-                    ]
-                )
-            ],
-            source_count=3
-        )
-    ],
-    total_sources=3,
-    date_range={
-        "start": "2025-11-08",
-        "end": "2025-11-08"
-    }
-)
-

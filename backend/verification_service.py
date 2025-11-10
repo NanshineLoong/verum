@@ -10,7 +10,7 @@ from datetime import datetime
 from typing import Dict, Any, Optional
 
 # 添加路径以便导入
-deepsearch_demo_path = os.path.join(os.path.dirname(__file__), 'deepsearchagent_demo')
+deepsearch_demo_path = os.path.join(os.path.dirname(__file__), 'DeepSearchAgent-Demo')
 sys.path.insert(0, deepsearch_demo_path)
 
 from src.llms import BaseLLM

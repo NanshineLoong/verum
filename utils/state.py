@@ -16,6 +16,16 @@ def init_session_state():
     
     if "selected_node" not in st.session_state:
         st.session_state.selected_node = None
+    
+    # 结果页面相关状态
+    if "module_report" not in st.session_state:
+        st.session_state.module_report = None
+    
+    if "module_verification" not in st.session_state:
+        st.session_state.module_verification = None
+    
+    if "module_timeline" not in st.session_state:
+        st.session_state.module_timeline = None
 
 
 def set_current_search(query: str, graph_id: str):
@@ -34,4 +44,21 @@ def clear_search():
     st.session_state.current_graph_id = None
     st.session_state.current_query = ""
     st.session_state.search_result = None
+
+
+def reset_result_state():
+    """重置结果页面状态（每次创建新查询任务时调用）"""
+    st.session_state.module_report = None
+    st.session_state.module_verification = None
+    st.session_state.module_timeline = None
+
+
+def set_verification_data(verification):
+    """设置判罚数据"""
+    st.session_state.module_verification = verification
+
+
+def set_timeline_data(timeline):
+    """设置时间线数据"""
+    st.session_state.module_timeline = timeline
 

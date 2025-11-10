@@ -1,11 +1,11 @@
 """搜索框组件"""
 import streamlit as st
-from api.query_api import query_api
 from api.mock_api import MockAPI
-from utils.state import set_current_search
+from api.api_client import api_client
+from utils.state import set_current_search, reset_result_state
 from loguru import logger
 
-api_client = MockAPI()
+# api_client = MockAPI()
 
 def render_search_box():
     """渲染搜索框"""
@@ -43,6 +43,9 @@ def render_search_box():
     # 处理搜索
     if search_clicked and query:
         try:
+            # 重置结果页面状态
+            reset_result_state()
+            
             # 创建查询任务
             with st.spinner(f"正在创建查询任务（{'深度' if mode == 'deep' else '浅度'}思考模式）..."):
                 task_data = api_client.create_query_task(query, mode)

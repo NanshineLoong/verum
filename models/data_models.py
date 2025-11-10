@@ -38,10 +38,12 @@ class ReportSource:
 @dataclass
 class ReportData:
     """报告数据"""
-    verdict: str  # 高可信/中可信/低可信
-    confidence: float
     report: str
+    verdict: Optional[str] = None  # 高可信/中可信/低可信
+    confidence: Optional[float] = None
     sources: List[ReportSource] = field(default_factory=list)
+    verification: Optional[Dict] = None  # 新闻真假判别结果
+    task: Optional[Dict] = None  # 任务信息
 
 
 # 外部平台链接
