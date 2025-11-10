@@ -71,6 +71,7 @@ git submodule update --init --recursive
 ```
 
 项目包含以下两个 submodule：
+
 - **@bettafish**: 包含 QueryEngine、MediaEngine、InsightEngine 等核心引擎
 - **@deepsearchagent_demo**: 包含深度搜索代理的演示代码
 
@@ -302,13 +303,14 @@ GET /api/verification/query/<task_id>
 ## 技术栈
 
 - **前端框架**: Streamlit 1.31.0
-- **语言**: Python 3.8+
+- **语言**: Python 3.11
 - **数据处理**: Pandas
 - **HTTP 请求**: Requests
 
 ## Query Engine API 服务
 
 项目包含了一个独立的 Query Engine API 服务，基于 Flask 提供 REST API 接口。该服务依赖两个 submodule：
+
 - **@bettafish/QueryEngine**: 用于深度思考模式（deep mode）
 - **@deepsearchagent_demo**: 用于浅度思考模式（quick mode）
 
@@ -321,16 +323,13 @@ GET /api/verification/query/<task_id>
 服务将在 `http://localhost:6001` 上运行
 
 **注意**: 启动 API 服务前，请确保：
+
 1. 已正确初始化并配置好两个 submodule（见"快速开始"部分）
 2. 已设置必要的环境变量（`QUERY_ENGINE_API_KEY`、`TAVILY_API_KEY` 等）
 
 ### API 文档
 
 详见 `backend/api_server.py` 和 `examples/README.md`
-
-### 示例页面
-
-访问 http://localhost:6001/examples/query_frontend.html 查看使用示例
 
 ## 故障排除
 
@@ -339,18 +338,21 @@ GET /api/verification/query/<task_id>
 **问题**: 运行时报错 `ModuleNotFoundError: No module named 'QueryEngine'` 或类似错误
 
 **解决方案**:
+
 1. 确认 submodule 已正确初始化：
+
    ```bash
    git submodule status
    ```
-   应该看到两个 submodule 都有提交哈希值
 
+   应该看到两个 submodule 都有提交哈希值
 2. 如果 submodule 显示为空，重新初始化：
+
    ```bash
    git submodule update --init --recursive
    ```
-
 3. 确认 submodule 的依赖已安装：
+
    ```bash
    cd @bettafish && pip install -r requirements.txt && cd ..
    cd @deepsearchagent_demo && pip install -r requirements.txt && cd ..
@@ -359,6 +361,7 @@ GET /api/verification/query/<task_id>
 **问题**: API 服务启动失败，提示缺少 API Key
 
 **解决方案**:
+
 1. 确认已在项目根目录创建 `.env` 文件
 2. 确认已设置以下必需的环境变量：
    - `QUERY_ENGINE_API_KEY`
@@ -374,6 +377,7 @@ GET /api/verification/query/<task_id>
 **问题**: Submodule 更新后代码不工作
 
 **解决方案**:
+
 ```bash
 # 更新所有 submodule 到最新版本
 git submodule update --remote --recursive
@@ -386,10 +390,10 @@ cd ..
 
 ## 后续开发计划
 
-- [x] 接入真实查询 API（Query Engine API 已完成）
-- [x] 思考模式切换（深度/浅度）
-- [x] 新闻真假判别功能
-- [x] 时间线生成功能
+- [X] 接入真实查询 API（Query Engine API 已完成）
+- [X] 思考模式切换（深度/浅度）
+- [X] 新闻真假判别功能
+- [X] 时间线生成功能
 - [ ] 接入其他引擎 API（讨论等）
 - [ ] 添加用户认证系统
 - [ ] 移动端适配优化
