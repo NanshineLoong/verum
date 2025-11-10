@@ -29,6 +29,16 @@ def init_session_state():
     
     if "module_mermaid_timeline" not in st.session_state:
         st.session_state.module_mermaid_timeline = None
+    
+    # 反馈相关状态
+    if "agree_count" not in st.session_state:
+        st.session_state.agree_count = 42
+    
+    if "disagree_count" not in st.session_state:
+        st.session_state.disagree_count = 8
+    
+    if "feedback_given" not in st.session_state:
+        st.session_state.feedback_given = False
 
 
 def set_current_search(query: str, graph_id: str):
@@ -55,6 +65,8 @@ def reset_result_state():
     st.session_state.module_verification = None
     st.session_state.module_timeline = None
     st.session_state.module_mermaid_timeline = None
+    # 重置反馈状态
+    reset_feedback_state()
 
 
 def set_verification_data(verification):
@@ -70,4 +82,32 @@ def set_timeline_data(timeline):
 def set_mermaid_timeline_data(mermaid_timeline):
     """设置 Mermaid Timeline 数据"""
     st.session_state.module_mermaid_timeline = mermaid_timeline
+
+
+def reset_feedback_state():
+    """重置反馈状态"""
+    st.session_state.agree_count = 42
+    st.session_state.disagree_count = 8
+    st.session_state.feedback_given = False
+
+
+def set_feedback_agree():
+    """设置用户点击了'真的！'反馈"""
+    st.session_state.agree_count += 1
+    st.session_state.feedback_given = True
+
+
+def set_feedback_disagree():
+    """设置用户点击了'假的！'反馈"""
+    st.session_state.disagree_count += 1
+    st.session_state.feedback_given = True
+
+
+def get_feedback_state():
+    """获取反馈状态"""
+    return {
+        "agree_count": st.session_state.get("agree_count", 42),
+        "disagree_count": st.session_state.get("disagree_count", 8),
+        "feedback_given": st.session_state.get("feedback_given", False)
+    }
 

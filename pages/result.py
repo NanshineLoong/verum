@@ -1,5 +1,6 @@
 """结果展示页面"""
 import streamlit as st
+import time
 from api.mock_api import MockAPI
 from api.api_client import api_client
 from components.sidebar import render_sidebar
@@ -7,7 +8,11 @@ from utils.state import (
     init_session_state,
     set_verification_data,
     set_timeline_data,
-    set_mermaid_timeline_data
+    set_mermaid_timeline_data,
+    reset_feedback_state,
+    set_feedback_agree,
+    set_feedback_disagree,
+    get_feedback_state
 )
 from loguru import logger
 
@@ -84,8 +89,32 @@ def render_verdict_section(verification):
         st.caption(verification.summary)
 
 
-def render_report_tabs(report_text, current_query):
+def render_report_tabs(report_text, current_query, generation_time=None):
     """渲染报告标签页"""
+    
+    # 如果有生成时长，显示时长信息
+    if generation_time is not None and report_text:
+        # 格式化时长显示
+        if generation_time < 60:
+            time_display = f"{generation_time:.1f}秒"
+        else:
+            minutes = int(generation_time // 60)
+            seconds = generation_time % 60
+            time_display = f"{minutes}分{seconds:.1f}秒"
+        
+        st.markdown(f"""
+        <div style="
+            padding: 0.5rem 1rem;
+            margin-bottom: 1rem;
+            background-color: #f0f7ff;
+            border-left: 3px solid #4a90e2;
+            border-radius: 0.25rem;
+            color: #2c5282;
+            font-size: 0.9rem;
+        ">
+            ⏱️ 报告生成耗时: <strong>{time_display}</strong>
+        </div>
+        """, unsafe_allow_html=True)
 
     tab1, tab2 = st.tabs(["📰 新闻原文", "📄 AI 分析报告"])
     
@@ -142,36 +171,32 @@ def render_feedback_section():
     
     col1, col2 = st.columns(2)
     
-    # 初始化计数器和反馈状态
-    if 'agree_count' not in st.session_state:
-        st.session_state.agree_count = 42
-    if 'disagree_count' not in st.session_state:
-        st.session_state.disagree_count = 8
-    if 'feedback_given' not in st.session_state:
-        st.session_state.feedback_given = False
+    # 获取反馈状态
+    feedback_state = get_feedback_state()
+    agree_count = feedback_state["agree_count"]
+    disagree_count = feedback_state["disagree_count"]
+    feedback_given = feedback_state["feedback_given"]
     
     with col1:
         if st.button(
-            f"真的！ ({st.session_state.agree_count})", 
+            f"真的！ ({agree_count})", 
             use_container_width=True,
-            disabled=st.session_state.feedback_given
+            disabled=feedback_given
         ):
-            st.session_state.agree_count += 1
-            st.session_state.feedback_given = True
+            set_feedback_agree()
             st.rerun()
     
     with col2:
         if st.button(
-            f"假的! ({st.session_state.disagree_count})", 
+            f"假的! ({disagree_count})", 
             use_container_width=True,
-            disabled=st.session_state.feedback_given
+            disabled=feedback_given
         ):
-            st.session_state.disagree_count += 1
-            st.session_state.feedback_given = True
+            set_feedback_disagree()
             st.rerun()
     
     # 显示感谢提示
-    if st.session_state.feedback_given:
+    if feedback_given:
         st.success("✅ 感谢您的反馈！")
 
 
@@ -362,10 +387,14 @@ def render_reference_section(timeline_data):
         st.info("暂无时间线事件")
 
 
-def render_external_discussions():
+def render_external_discussions(show_placeholder=False):
     """渲染外部讨论链接"""
     st.subheader("社区讨论")
     st.caption("查看其他平台的相关讨论")
+    
+    if show_placeholder:
+        st.info("⏳ 正在加载社区讨论...")
+        return
     
     # Mock 数据 - 实际应该从 API 获取
     discussions = MockAPI.get_external_discussions()
@@ -420,6 +449,7 @@ def main():
     verification = st.session_state.get('module_verification')
     timeline_data = st.session_state.get('module_timeline')
     mermaid_timeline_data = st.session_state.get('module_mermaid_timeline')
+    report_generation_time = st.session_state.get('report_generation_time')
     
     # === 第一步：先创建可替换的占位容器并渲染当前内容 ===
 
@@ -432,7 +462,7 @@ def main():
                 
         report_placeholder = st.empty()
         with report_placeholder.container():
-            render_report_tabs(report_text, current_query)
+            render_report_tabs(report_text, current_query, report_generation_time)
         
         render_feedback_section()
     
@@ -448,7 +478,8 @@ def main():
                 
         discussions_placeholder = st.empty()
         with discussions_placeholder.container():
-            render_external_discussions()
+            # 如果 report 还没生成，显示占位内容
+            render_external_discussions(show_placeholder=not report_text)
 
     
     # === 第二步：后台加载数据并更新容器（不阻塞布局渲染） ===
@@ -456,14 +487,21 @@ def main():
     if task_id and not report_text:
         try:
             logger.info(f"开始生成报告: {task_id}")
+            start_time = time.time()
             report_data = api_client.wait_for_query(task_id, poll_interval=1.0, max_wait_time=3000.0)
+            end_time = time.time()
+            generation_time = end_time - start_time
             
             if report_data and hasattr(report_data, 'report'):
                 report_text = report_data.report
                 st.session_state.module_report = report_text
-                logger.info("报告生成完成")
+                st.session_state.report_generation_time = generation_time
+                logger.info(f"报告生成完成，耗时: {generation_time:.2f}秒")
                 with report_placeholder.container():
-                    render_report_tabs(report_text, current_query)
+                    render_report_tabs(report_text, current_query, generation_time)
+                # 报告生成后，更新社区讨论
+                with discussions_placeholder.container():
+                    render_external_discussions(show_placeholder=False)
         except Exception as e:
             logger.error(f"生成报告失败: {str(e)}")
             with report_placeholder.container():
@@ -515,6 +553,11 @@ def main():
             logger.error(f"生成 Mermaid Timeline 失败: {str(e)}")
             with mermaid_placeholder.container():
                 st.error(f"❌ Mermaid Timeline 生成失败: {str(e)}")
+    
+    # 更新社区讨论（如果报告已生成）
+    if report_text:
+        with discussions_placeholder.container():
+            render_external_discussions(show_placeholder=False)
 
 
 if __name__ == "__main__":

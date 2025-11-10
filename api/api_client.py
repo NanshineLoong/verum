@@ -103,13 +103,13 @@ class APIClient:
             logger.error(error_msg)
             raise Exception(error_msg)
     
-    def create_query_task(self, query: str, mode: str = "quick") -> Dict:
+    def create_query_task(self, query: str, mode: str = "auto") -> Dict:
         """
         创建查询任务
         
         Args:
             query: 查询内容
-            mode: 思考模式，"deep"（深度思考）或 "quick"（浅度思考）
+            mode: 思考模式，"deep"（深度思考）、"quick"（浅度思考）或 "auto"（自动判断，默认）
             
         Returns:
             包含 task_id 和任务信息的字典
@@ -215,7 +215,6 @@ class APIClient:
             except Exception as e:
                 logger.error(f"等待任务结果时出错: {str(e)}")
                 raise
-    
 
     def create_verification(self, task_id: str = None, query: str = None, report: str = None) -> VerificationData:
         """

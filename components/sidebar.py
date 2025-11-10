@@ -28,6 +28,10 @@ def render_sidebar(history: List[HistoryItem]):
         if st.button("🔥 全网热榜", use_container_width=True):
             st.switch_page("pages/leaderboad.py")
         
+        # 债券盘点按钮
+        if st.button("📊 债券盘点", use_container_width=True):
+            st.switch_page("pages/bond_report.py")
+        
         st.divider()
         
         # 历史记录

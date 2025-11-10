@@ -4,7 +4,8 @@ from typing import List
 from models.data_models import Recommendation
 from api.mock_api import MockAPI
 from api.api_client import api_client
-from utils.state import set_current_search
+from utils.state import set_current_search, reset_result_state
+from loguru import logger
 
 
 def render_recommendations(recommendations: List[Recommendation]):
@@ -47,11 +48,28 @@ def render_recommendations(recommendations: List[Recommendation]):
                     key=f"rec_{idx}",
                     use_container_width=True
                 ):
-                    # 点击推荐直接搜索
-                    with st.spinner("正在加载..."):
-                        result = api_client.create_query_task(rec.title)
-                        task_id = result.get("task_id")
-                        if task_id:
-                            set_current_search(rec.title, task_id)
-                            st.switch_page("pages/result.py")
+                    try:
+                        # 重置结果页面状态
+                        reset_result_state()
+                        
+                        # 创建查询任务（推荐使用快速模式）
+                        with st.spinner("正在创建查询任务..."):
+                            task_data = api_client.create_query_task(rec.title, mode="quick")
+                            task_id = task_data.get('task_id')
+                        
+                        if not task_id:
+                            st.error("创建查询任务失败")
+                            return
+                        
+                        # 保存查询、任务ID和模式到 session state
+                        set_current_search(rec.title, task_id)
+                        st.session_state.pending_task_id = task_id
+                        st.session_state.query_mode = "quick"
+                        
+                        # 立即跳转到结果页面
+                        st.switch_page("pages/result.py")
+                    
+                    except Exception as e:
+                        st.error(f"创建查询任务失败: {str(e)}")
+                        logger.error(f"创建查询任务失败: {str(e)}")
 

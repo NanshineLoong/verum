@@ -29,15 +29,24 @@ def render_search_box():
     with col2:
         search_clicked = st.button("搜索", use_container_width=True)
 
-    # 思考模式选择（可选，默认浅模式）
-    mode_deep = st.checkbox(
-        "🧠 深度溯源",
-        value=False,
-        help="更全面的分析，耗时较长"
-    )
+    # 思考模式选择（下拉选择，默认自动）
+    mode_options = {
+        "自动": "auto",
+        "深度溯源": "deep",
+        "快速查找": "quick"
+    }
+    col1, _ = st.columns([1, 7])
+
+    with col1:
+        mode_label = st.selectbox(
+            "思考模式",
+            options=list(mode_options.keys()),
+            index=0,  # 默认选择"自动"
+            help="自动：根据查询内容智能选择模式；深度溯源：更全面的分析，耗时较长；快速查找：快速检索事实信息"
+        )
     
     # 将选择转换为模式值
-    mode = "deep" if mode_deep else "quick"
+    mode = mode_options[mode_label]
     
     # 处理搜索
     if search_clicked and query:
@@ -46,7 +55,12 @@ def render_search_box():
             reset_result_state()
             
             # 创建查询任务
-            with st.spinner(f"正在创建查询任务（{'深度' if mode == 'deep' else '浅度'}思考模式）..."):
+            mode_display = {
+                "auto": "自动",
+                "deep": "深度",
+                "quick": "快速"
+            }.get(mode, "自动")
+            with st.spinner(f"正在创建查询任务（{mode_display}模式）..."):
                 task_data = api_client.create_query_task(query, mode)
                 task_id = task_data.get('task_id')
             
