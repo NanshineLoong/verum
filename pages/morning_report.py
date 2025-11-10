@@ -1,4 +1,4 @@
-"""债券盘后报告页面"""
+"""债券盘前报告页面"""
 import streamlit as st
 from pathlib import Path
 import base64
@@ -9,8 +9,8 @@ from utils.state import init_session_state
 
 # 页面配置
 st.set_page_config(
-    page_title="债券盘后报告",
-    page_icon="📊",
+    page_title="债券盘前报告",
+    page_icon="🌅",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -39,7 +39,7 @@ st.markdown("""
 @st.cache_data
 def load_report_content():
     """加载报告内容"""
-    report_path = Path(__file__).parent / "bond" / "全章汇总报告.md"
+    report_path = Path(__file__).parent / "bond" / "盘前固收研报_2025-10-24.md"
     try:
         with open(report_path, 'r', encoding='utf-8') as f:
             return f.read()
@@ -48,6 +48,43 @@ def load_report_content():
     except Exception as e:
         st.error(f"读取报告文件失败: {str(e)}")
         return None
+
+
+def clean_html_tags(markdown_text):
+    """清理 markdown 中的 HTML 标签，转换为标准 Markdown 格式"""
+    # 处理 h2 标签: <h2 style="...">内容</h2> -> ## 内容
+    markdown_text = re.sub(
+        r'<h2[^>]*>(.*?)</h2>',
+        r'## \1',
+        markdown_text,
+        flags=re.DOTALL | re.IGNORECASE
+    )
+    
+    # 处理 h3 标签: <h3 style="...">内容</h3> -> ### 内容
+    markdown_text = re.sub(
+        r'<h3[^>]*>(.*?)</h3>',
+        r'### \1',
+        markdown_text,
+        flags=re.DOTALL | re.IGNORECASE
+    )
+    
+    # 处理 p 标签: <p style="...">内容</p> -> 内容（保留换行）
+    markdown_text = re.sub(
+        r'<p[^>]*>(.*?)</p>',
+        r'\1\n',
+        markdown_text,
+        flags=re.DOTALL | re.IGNORECASE
+    )
+    
+    # 清理其他常见的 HTML 标签（保留内容）
+    markdown_text = re.sub(r'<br\s*/?>', '\n', markdown_text, flags=re.IGNORECASE)
+    markdown_text = re.sub(r'<div[^>]*>(.*?)</div>', r'\1', markdown_text, flags=re.DOTALL | re.IGNORECASE)
+    markdown_text = re.sub(r'<span[^>]*>(.*?)</span>', r'\1', markdown_text, flags=re.DOTALL | re.IGNORECASE)
+    
+    # 清理多余的空行（连续3个以上换行符变为2个）
+    markdown_text = re.sub(r'\n{3,}', '\n\n', markdown_text)
+    
+    return markdown_text
 
 
 def process_images_in_markdown(markdown_text, base_dir):
@@ -109,19 +146,22 @@ def main():
         if st.button("← 返回首页"):
             st.switch_page("app.py")
     with col2:
-        if st.button("🌅 盘前报告", use_container_width=False):
-            st.switch_page("pages/morning_report.py")
+        if st.button("📊 盘后报告", use_container_width=False):
+            st.switch_page("pages/bond_report.py")
     
     # 页面标题
-    st.title("📊 债券盘后报告")
+    st.title("🌅 债券盘前报告")
     
     # 加载报告内容
     report_text = load_report_content()
     
     if report_text:
-        # 处理图片路径，将相对路径转换为 base64 data URI
+        # 先清理 HTML 标签，转换为标准 Markdown 格式
+        cleaned_text = clean_html_tags(report_text)
+        
+        # 然后处理图片路径，将相对路径转换为 base64 data URI
         bond_dir = Path(__file__).parent / "bond"
-        processed_text = process_images_in_markdown(report_text, bond_dir)
+        processed_text = process_images_in_markdown(cleaned_text, bond_dir)
         
         # 使用 Streamlit 的 markdown 渲染，它原生支持表格和图片
         st.markdown("""

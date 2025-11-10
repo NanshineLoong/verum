@@ -9,12 +9,12 @@ from utils.state import (
     set_verification_data,
     set_timeline_data,
     set_mermaid_timeline_data,
-    reset_feedback_state,
     set_feedback_agree,
     set_feedback_disagree,
     get_feedback_state
 )
 from loguru import logger
+from backend.withinput import publish_xhs_from_news
 
 # 使用 MockAPI 而不是真实的 API 客户端
 # api_client = MockAPI()
@@ -387,10 +387,27 @@ def render_reference_section(timeline_data):
         st.info("暂无时间线事件")
 
 
-def render_external_discussions(show_placeholder=False):
+def render_external_discussions(show_placeholder=False, report_text=None, key_suffix=""):
     """渲染外部讨论链接"""
     st.subheader("社区讨论")
     st.caption("查看其他平台的相关讨论")
+    
+    # 如果 report 已生成，显示发布到小红书的按钮
+    if report_text and not show_placeholder:
+        button_key = f"publish_xhs_btn_{key_suffix}" if key_suffix else "publish_xhs_btn"
+        if st.button("📕 发布到小红书", key=button_key, use_container_width=True):
+            try:
+                with st.spinner("正在发布到小红书，请稍候..."):
+                    resp = publish_xhs_from_news(report_text)
+                    result = getattr(resp, "output_text", resp.to_json())
+                    st.success("✅ 已成功发布到小红书！")
+                    # 显示发布结果
+                    with st.expander("查看发布详情", expanded=False):
+                        st.text(result)
+            except Exception as e:
+                st.error(f"❌ 发布失败: {str(e)}")
+                logger.error(f"发布到小红书失败: {str(e)}")
+        st.markdown("<br>", unsafe_allow_html=True)  # 添加一些间距
     
     if show_placeholder:
         st.info("⏳ 正在加载社区讨论...")
@@ -479,7 +496,7 @@ def main():
         discussions_placeholder = st.empty()
         with discussions_placeholder.container():
             # 如果 report 还没生成，显示占位内容
-            render_external_discussions(show_placeholder=not report_text)
+            render_external_discussions(show_placeholder=not report_text, report_text=report_text, key_suffix="initial")
 
     
     # === 第二步：后台加载数据并更新容器（不阻塞布局渲染） ===
@@ -501,7 +518,7 @@ def main():
                     render_report_tabs(report_text, current_query, generation_time)
                 # 报告生成后，更新社区讨论
                 with discussions_placeholder.container():
-                    render_external_discussions(show_placeholder=False)
+                    render_external_discussions(show_placeholder=False, report_text=report_text, key_suffix="after_report")
         except Exception as e:
             logger.error(f"生成报告失败: {str(e)}")
             with report_placeholder.container():
@@ -553,11 +570,6 @@ def main():
             logger.error(f"生成 Mermaid Timeline 失败: {str(e)}")
             with mermaid_placeholder.container():
                 st.error(f"❌ Mermaid Timeline 生成失败: {str(e)}")
-    
-    # 更新社区讨论（如果报告已生成）
-    if report_text:
-        with discussions_placeholder.container():
-            render_external_discussions(show_placeholder=False)
 
 
 if __name__ == "__main__":
